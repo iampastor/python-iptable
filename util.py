@@ -15,18 +15,22 @@ def ip_to_str(address):
     return socket.inet_ntop(socket.AF_INET, address)
 
 
-def print_packet(pkt):
-    ip = dpkt.ip.IP(pkt.packet.get_payload())
-    if ip.p == dpkt.ip.IP_PROTO_TCP:
-        syn = bool(ip.tcp.flags & dpkt.tcp.TH_SYN)
-        fin = bool(ip.tcp.flags & dpkt.tcp.TH_FIN)
-        # Print out the info
-        print pkt.timestamp,
-        print '%s:%d -> %s:%d   (len=%d ttl=%d SYN=%d FIN=%d)\n' % \
-            (ip_to_str(ip.src), ip.tcp.sport, ip_to_str(ip.dst), ip.tcp.dport,
-                ip.len, ip.ttl, syn, fin)
-        if ip.tcp.data != "":
-            print "data: %s\n" % (ip.tcp.data)
+def print_packet(pkt, verbose=0):
+    if verbose == 0:
+        return
+    elif verbose > 0:
+        ip = dpkt.ip.IP(pkt.packet.get_payload())
+        if ip.p == dpkt.ip.IP_PROTO_TCP:
+            syn = bool(ip.tcp.flags & dpkt.tcp.TH_SYN)
+            fin = bool(ip.tcp.flags & dpkt.tcp.TH_FIN)
+            # Print out the info
+            print pkt.timestamp,
+            print '%s:%d -> %s:%d   (len=%d ttl=%d SYN=%d FIN=%d)' % \
+                (ip_to_str(ip.src), ip.tcp.sport, ip_to_str(ip.dst), ip.tcp.dport,
+                    ip.len, ip.ttl, syn, fin)
+            if verbose > 1:
+                if ip.tcp.data != "":
+                    print "data: %s" % (ip.tcp.data)
 
 
 def rand_latency(latency):

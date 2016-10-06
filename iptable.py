@@ -13,8 +13,7 @@ from netfilterqueue import NetfilterQueue
 import util
 
 
-drop_rate = 0
-latency = 0
+config = None
 q = Queue.Queue()
 choices = []
 
@@ -24,6 +23,7 @@ class MyPacket:
     def __init__(self, packet):
         self.packet = packet
         self.timestamp = time.time()
+        self.latency = 0
 
     def accept(self):
         self.packet.accept()
@@ -37,16 +37,16 @@ class MyPacket:
 
 def handle(pkt):
     mypkt = MyPacket(pkt)
-    global latency
-    mypkt.latency = util.rand_latency(latency)
+    global config
+    mypkt.latency = config.latency
     q.put(mypkt)
 
 
 def init_choice(drop_rate):
     global choices
-    for i in range(drop_rate):
+    for _ in range(drop_rate):
         choices.append(1)
-    for j in range(len(choices), 100):
+    for _ in range(len(choices), 100):
         choices.append(0)
 
 
@@ -61,32 +61,34 @@ def send_packet():
         now = time.time()
         if (now - pkt.timestamp) * 1000 > pkt.latency:
             if is_drop():
-                print "Drop, latency: %d" % pkt.latency,
+                if config.v > 0:
+                    print "Drop, latency: %d" % pkt.latency,
                 pkt.drop()
             else:
-                print "Accept, latency: %d" % pkt.latency,
+                if config.v > 0:
+                    print "Accept, latency: %d" % pkt.latency,
                 pkt.accept()
-            util.print_packet(pkt)
+            util.print_packet(pkt, config.v)
         else:
             q.put(pkt)
 
 
 def parse_args():
-    """--drop --latency
+    """--drop --latency -v
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--drop", default=0, type=int, help="drop rate")
     parser.add_argument("--latency", default=0, type=float, help="latency ms")
+    parser.add_argument("-v", default=0, choices=[1, 2, 3], type=int, help="verbose output")
     args = parser.parse_args()
-    global drop_rate, latency
-    drop_rate = args.drop
-    latency = args.latency
-    print "start at drop rate %s%%, latency %sms" % (drop_rate, latency)
+    global config
+    config = args
+    print "start at drop rate %s%%, latency %sms" % (config.drop, config.latency)
 
 
 def main():
     parse_args()
-    init_choice(drop_rate)
+    init_choice(config.drop)
     atexit.register(clean)
     nfqueue = NetfilterQueue()
     sendThread = threading.Thread(target=send_packet)
